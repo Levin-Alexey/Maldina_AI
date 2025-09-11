@@ -5,10 +5,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-OPENROUTER_API_KEY = (
-    os.getenv("OPENROUTER_API_KEY")
-    or "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"
-)
+OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 MODEL = "deepseek/deepseek-chat-v3.1:free"
 REFERER = "https://maldina.ru"  # Можно заменить на свой сайт
