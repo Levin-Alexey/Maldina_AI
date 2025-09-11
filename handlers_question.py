@@ -27,8 +27,10 @@ async def handle_user_query(message: types.Message, state: FSMContext):
     if not query:
         await message.answer("Пожалуйста, введите текст запроса.")
         return
+    import logging
     async with SessionLocal() as session:
         results = await search_kb(session, query, limit=3)
+    logging.info(f"KB search query: {query!r}, results: {results}")
     if not results:
         await message.answer(
             "Ответ не найден в базе знаний. Пожалуйста, обратитесь в поддержку бота."
