@@ -7,12 +7,34 @@ from sqlalchemy.ext.asyncio import (
     AsyncSession,
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
-from sqlalchemy import String, Integer, DateTime, func, BigInteger
+
+from sqlalchemy import String, Integer, DateTime, func, BigInteger, Text, ARRAY
 from datetime import datetime
 
 
 class Base(AsyncAttrs, DeclarativeBase):
     pass
+
+
+# Модель базы знаний (knowledge base)
+class KbEntry(Base):
+    __tablename__ = "kb_entries"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    category: Mapped[str | None] = mapped_column(Text, nullable=True)
+    user_question: Mapped[str | None] = mapped_column(Text, nullable=True)
+    answer_primary: Mapped[str] = mapped_column(Text, nullable=False)
+    answer_followup: Mapped[str | None] = mapped_column(Text, nullable=True)
+    rating_context: Mapped[list[str] | None] = mapped_column(ARRAY(Text), nullable=True)
+    tags: Mapped[list[str] | None] = mapped_column(ARRAY(Text), nullable=True)
+    source_hash: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+    # tsv не нужен в ORM, он для индексации/поиска
 
 
 from sqlalchemy import DateTime, func

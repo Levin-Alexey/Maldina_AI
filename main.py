@@ -6,9 +6,10 @@ from aiogram.filters import CommandStart
 from dotenv import load_dotenv
 
 # SQLAlchemy imports
-from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
+
 from sqlalchemy import select
 from models import Base, User
+from db import engine, SessionLocal
 
 # Логирование
 logging.basicConfig(
@@ -27,10 +28,6 @@ if not BOT_TOKEN:
     raise RuntimeError("Не задан токен. Установите TELEGRAM_BOT_TOKEN или .env файл")
 if not DATABASE_URL:
     raise RuntimeError("Не задана строка подключения к БД (DATABASE_URL) в .env")
-
-# SQLAlchemy engine & session
-engine = create_async_engine(DATABASE_URL, echo=False)
-SessionLocal = async_sessionmaker(engine, expire_on_commit=False)
 
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher()
