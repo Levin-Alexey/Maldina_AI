@@ -17,7 +17,7 @@ async def feedback_start(callback: types.CallbackQuery, state: FSMContext):
     await callback.answer()
     await callback.message.answer(
         "Здесь можно оставить отзыв о взаимодействии с чатом поддержки или "
-        "ваши пожелания. Будем рады получить честную оценку нашей работы."
+        "Ваши пожелания. Будем рады получить честную оценку нашей работы."
     )
     await state.set_state(FeedbackStates.waiting_message)
 
