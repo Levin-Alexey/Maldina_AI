@@ -17,7 +17,9 @@ class DefectStates(StatesGroup):
 async def defect_start(callback: types.CallbackQuery, state: FSMContext):
     await callback.answer()
     await callback.message.answer(
-        "Пожалуйста, опишите проблему и прикрепите фото/видео/файл.\nВаше сообщение будет отправлено в поддержку."
+        "Пожалуйста, укажите название или артикул товара, подробно опишите "
+        "проблему и прикрепите фото и/или видео, на которых хорошо видно "
+        "проблему или брак."
     )
     await state.set_state(DefectStates.waiting_message)
 

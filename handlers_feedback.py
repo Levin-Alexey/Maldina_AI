@@ -16,7 +16,8 @@ class FeedbackStates(StatesGroup):
 async def feedback_start(callback: types.CallbackQuery, state: FSMContext):
     await callback.answer()
     await callback.message.answer(
-        "Пожалуйста, напишите ваше сообщение или прикрепите файл.\nВсё будет отправлено в поддержку."
+        "Здесь можно оставить отзыв о взаимодействии с чатом поддержки или "
+        "ваши пожелания. Будем рады получить честную оценку нашей работы."
     )
     await state.set_state(FeedbackStates.waiting_message)
 

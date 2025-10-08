@@ -16,7 +16,8 @@ class BonusStates(StatesGroup):
 async def bonus_start(callback: types.CallbackQuery, state: FSMContext):
     await callback.answer()
     await callback.message.answer(
-        "Пожалуйста, отправьте скриншот/файл и текст для получения бонуса.\nВаше сообщение будет отправлено в поддержку."
+        "Для получения бонуса, пожалуйста, пришлите скриншот "
+        "опубликованного отзыва и реквизиты для получения."
     )
     await state.set_state(BonusStates.waiting_message)
 
