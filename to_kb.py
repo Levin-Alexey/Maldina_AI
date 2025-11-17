@@ -1,16 +1,32 @@
 import pandas as pd
 from sentence_transformers import SentenceTransformer
 import psycopg2
+import hashlib
+from pathlib import Path
 
-# Загрузка Excel
-df = pd.read_excel("files/Скрипты для товаров.xlsx", dtype=str).fillna("")
+# 1. Читаем Excel: 1-я колонка - вопрос, 2-я - ответ
+# Ищем файл сначала в ./files/kb.xlsx, затем в ./kb.xlsx
+base_dir = Path(__file__).resolve().parent
+candidates = [base_dir / "files" / "kb.xlsx", base_dir / "kb.xlsx"]
+for path in candidates:
+    if path.exists():
+        xlsx_path = path
+        break
+else:
+    raise FileNotFoundError(
+        (
+            "Не найден Excel-файл kb.xlsx. Проверьте, что он существует по "
+            "одному из путей: "
+        )
+        + ", ".join(str(p) for p in candidates)
+    )
 
-# Модель эмбеддингов
-model = SentenceTransformer(
-    "paraphrase-multilingual-MiniLM-L12-v2"
-)  # 384-мерный вектор
+df = pd.read_excel(xlsx_path, dtype=str).fillna("")
 
-# Подключение к БД
+# 2. Модель эмбеддингов (384-мерный вектор)
+model = SentenceTransformer("paraphrase-multilingual-MiniLM-L12-v2")
+
+# 3. Подключение к БД
 conn = psycopg2.connect(
     dbname="maldinadb",
     user="adminmaldina",
@@ -22,18 +38,50 @@ cur = conn.cursor()
 for _, row in df.iterrows():
     question = row.iloc[0].strip()
     answer = row.iloc[1].strip()
-    emb = model.encode(question).tolist()
+
+    if not question and not answer:
+        continue
+
+    # Текст для эмбеддинга: вопрос + ответ
+    emb_text = question + "\n\n" + answer
+    emb = model.encode(emb_text).tolist()
+
+    # Уникальный хэш строки (чтобы не было дублей)
+    source_hash = hashlib.sha256(
+        (question + "\n" + answer).encode("utf-8")
+    ).hexdigest()
+
+    # INSERT в таблицу kb_entries
     cur.execute(
-        "INSERT INTO kb_entries (question, answer, embedding) VALUES (%s, %s, %s)",
-        (question, answer, emb),
+        """
+        INSERT INTO kb_entries (
+            category,
+            user_question,
+            answer_primary,
+            answer_followup,
+            rating_context,
+            tags,
+            source_hash,
+            embedding,
+            tsv
+        )
+        VALUES (
+            NULL,               -- category
+            %s,                 -- user_question
+            %s,                 -- answer_primary
+            NULL,               -- answer_followup
+            NULL,               -- rating_context
+            NULL,               -- tags
+            %s,                 -- source_hash
+            %s,                 -- embedding
+            to_tsvector('russian', %s)  -- tsv
+        )
+        ON CONFLICT (source_hash) DO NOTHING
+        """,
+        (question, answer, source_hash, emb, question + " " + answer),
     )
 
 conn.commit()
 cur.close()
 conn.close()
-#Резюме:
-
-#Один столбец — вопрос, второй — ответ.
-#Чем чище и короче формулировки, тем лучше будет поиск.
-#После импорта можно реализовать поиск по смыслу и интеграцию с ботом.
-#Если нужна помощь с обработкой Excel или скриптом — дай знать!
+print("Импорт kb.xlsx завершён.")
