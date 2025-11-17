@@ -1,11 +1,10 @@
-# kb_search.py
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import text
 from typing import List, Dict, Any
 
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import text
 from sentence_transformers import SentenceTransformer
 
-# Глобальная модель (один раз грузится при импорте модуля)
+# Модель эмбеддингов (та же, что ты использовал при импорте kb.xlsx)
 model = SentenceTransformer("paraphrase-multilingual-MiniLM-L12-v2")
 
 
@@ -14,11 +13,13 @@ async def search_kb(
 ) -> List[Dict[str, Any]]:
     """
     Семантический поиск по базе знаний kb_entries с использованием pgvector.
+    Возвращает top-N записей, отсортированных по близости к запросу.
     """
-    # 1. Считаем эмбеддинг запроса
+
+    # 1. Считаем эмбеддинг пользовательского запроса
     emb = model.encode(query).tolist()
 
-    # 2. SQL-запрос по вектору
+    # 2. Ищем ближайшие записи по косинусной/евклидовой метрике (оператор <->)
     sql = text(
         """
         SELECT
@@ -35,6 +36,7 @@ async def search_kb(
         LIMIT :limit
         """
     )
+
     res = await session.execute(sql, {"emb": emb, "limit": limit})
     rows = res.fetchall()
     return [dict(row._mapping) for row in rows]
