@@ -1,24 +1,8 @@
-from aiogram import types, Router
-from aiogram.fsm.context import FSMContext
-from aiogram.fsm.state import State, StatesGroup
+# handlers_question.py (фрагмент)
+from product_search import get_product_by_sku  # новый модуль
+import re
 
-from kb_search import search_kb
-from sqlalchemy.ext.asyncio import async_sessionmaker
-from db import SessionLocal
-from llm_client import ask_llm
-
-router = Router()
-
-
-class QuestionStates(StatesGroup):
-    waiting_query = State()
-
-
-@router.callback_query(lambda c: c.data == "question")
-async def handle_question(callback: types.CallbackQuery, state: FSMContext):
-    await callback.answer()
-    await callback.message.answer("Введите артикул товара или задайте Ваш вопрос")
-    await state.set_state(QuestionStates.waiting_query)
+SKU_PATTERN = re.compile(r"^[A-Za-z0-9\-]+$")  # упрощённо: без пробелов и спецсимволов
 
 
 @router.message(QuestionStates.waiting_query)
@@ -27,10 +11,26 @@ async def handle_user_query(message: types.Message, state: FSMContext):
     if not query:
         await message.answer("Пожалуйста, введите текст запроса.")
         return
-    import logging
+
     async with SessionLocal() as session:
+        # 1. Если это похоже на артикул -> ищем товар
+        if SKU_PATTERN.match(query):
+            product = await get_product_by_sku(session, query)
+            if product:
+                # здесь можно красиво отформатировать карточку товара
+                text_resp = (
+                    f"Найден товар:\n"
+                    f"{product['name']}\n"
+                    f"Артикул: {query}\n"
+                    f"Категория: {product.get('category')}\n"
+                    f"{product.get('rag_text')}"
+                )
+                await message.answer(text_resp)
+                await state.clear()
+                return
+        # 2. Иначе – обычный вопрос, идём в RAG по KB
         results = await search_kb(session, query, limit=3)
-    logging.info(f"KB search query: {query!r}, results: {results}")
+
     if not results:
         await message.answer(
             "Ответ не найден в базе знаний. Пожалуйста, обратитесь в поддержку бота."
@@ -44,4 +44,5 @@ async def handle_user_query(message: types.Message, state: FSMContext):
             kb_answers.append(answer)
         llm_response = ask_llm(query, kb_answers)
         await message.answer(llm_response)
+
     await state.clear()
