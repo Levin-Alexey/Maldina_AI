@@ -1,8 +1,29 @@
-# handlers_question.py (фрагмент)
-from product_search import get_product_by_sku  # новый модуль
+# handlers_question.py
+from aiogram import types, Router, F
+from aiogram.fsm.context import FSMContext
+from aiogram.fsm.state import State, StatesGroup
+from product_search import get_product_by_sku
+from kb_search import search_kb
+from llm_client import ask_llm
+from db import SessionLocal
 import re
 
-SKU_PATTERN = re.compile(r"^[A-Za-z0-9\-]+$")  # упрощённо: без пробелов и спецсимволов
+router = Router()
+
+SKU_PATTERN = re.compile(r"^[A-Za-z0-9\-]+$")
+
+
+class QuestionStates(StatesGroup):
+    waiting_query = State()
+
+
+@router.callback_query(lambda c: c.data == "question")
+async def question_start(callback: types.CallbackQuery, state: FSMContext):
+    await callback.answer()
+    await callback.message.answer(
+        "Пожалуйста, задайте ваш вопрос или укажите артикул товара."
+    )
+    await state.set_state(QuestionStates.waiting_query)
 
 
 @router.message(QuestionStates.waiting_query)
@@ -33,7 +54,8 @@ async def handle_user_query(message: types.Message, state: FSMContext):
 
     if not results:
         await message.answer(
-            "Ответ не найден в базе знаний. Пожалуйста, обратитесь в поддержку бота."
+            "Ответ не найден в базе знаний. "
+            "Пожалуйста, обратитесь в поддержку бота."
         )
     else:
         kb_answers = []
