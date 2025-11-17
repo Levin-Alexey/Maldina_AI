@@ -10,7 +10,8 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 from sqlalchemy import String, Integer, DateTime, func, BigInteger, Text, ARRAY
 from datetime import datetime
-from sqlalchemy.dialects.postgresql import VECTOR
+from pgvector.sqlalchemy import Vector
+
 
 class Base(AsyncAttrs, DeclarativeBase):
     pass
@@ -35,6 +36,8 @@ class KbEntry(Base):
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
     # tsv не нужен в ORM, он для индексации/поиска
+
+
 class Product(Base):
     __tablename__ = "products"
 
@@ -49,9 +52,8 @@ class Product(Base):
 
     rag_text: Mapped[str | None] = mapped_column(Text, nullable=True)
 
-    embedding = mapped_column(VECTOR(384), nullable=True)
-
-from sqlalchemy import DateTime, func
+    # эмбеддинг товара (VECTOR(384))
+    embedding = mapped_column(Vector(384), nullable=True)
 
 
 class User(Base):
