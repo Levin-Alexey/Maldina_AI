@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
 from sentence_transformers import SentenceTransformer
 
-# Модель эмбеддингов (та же, что ты использовал при импорте kb.xlsx)
+# Модель эмбеддингов (та же, что при импорте kb.xlsx)
 model = SentenceTransformer("paraphrase-multilingual-MiniLM-L12-v2")
 
 
@@ -19,7 +19,10 @@ async def search_kb(
     # 1. Считаем эмбеддинг пользовательского запроса
     emb = model.encode(query).tolist()
 
-    # 2. Ищем ближайшие записи по косинусной/евклидовой метрике (оператор <->)
+    # 2. Превращаем в строку формата '[0.123,0.456,...]'
+    emb_str = "[" + ",".join(f"{x:.6f}" for x in emb) + "]"
+
+    # 3. Ищем ближайшие записи по оператору <-> (pgvector)
     sql = text(
         """
         SELECT
@@ -30,13 +33,13 @@ async def search_kb(
             answer_followup,
             tags,
             rating_context,
-            embedding <-> :emb::vector AS distance
+            embedding <-> CAST(:emb AS vector) AS distance
         FROM kb_entries
-        ORDER BY embedding <-> :emb::vector
+        ORDER BY embedding <-> CAST(:emb AS vector)
         LIMIT :limit
         """
     )
 
-    res = await session.execute(sql, {"emb": emb, "limit": limit})
+    res = await session.execute(sql, {"emb": emb_str, "limit": limit})
     rows = res.fetchall()
     return [dict(row._mapping) for row in rows]
