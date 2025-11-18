@@ -21,14 +21,20 @@ class Base(AsyncAttrs, DeclarativeBase):
 class KbEntry(Base):
     __tablename__ = "kb_entries"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(
+        Integer, primary_key=True, autoincrement=True
+    )
     category: Mapped[str | None] = mapped_column(Text, nullable=True)
     user_question: Mapped[str | None] = mapped_column(Text, nullable=True)
     answer_primary: Mapped[str] = mapped_column(Text, nullable=False)
     answer_followup: Mapped[str | None] = mapped_column(Text, nullable=True)
-    rating_context: Mapped[list[str] | None] = mapped_column(ARRAY(Text), nullable=True)
+    rating_context: Mapped[list[str] | None] = mapped_column(
+        ARRAY(Text), nullable=True
+    )
     tags: Mapped[list[str] | None] = mapped_column(ARRAY(Text), nullable=True)
-    source_hash: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
+    source_hash: Mapped[str] = mapped_column(
+        String(64), unique=True, nullable=False
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
@@ -41,7 +47,9 @@ class KbEntry(Base):
 class Product(Base):
     __tablename__ = "products"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(
+        Integer, primary_key=True, autoincrement=True
+    )
 
     internal_sku: Mapped[str | None] = mapped_column(Text, nullable=True)
     wb_sku: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -59,8 +67,12 @@ class Product(Base):
 class User(Base):
     __tablename__ = "users"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    telegram_id: Mapped[int] = mapped_column(BigInteger, unique=True, nullable=False)
+    id: Mapped[int] = mapped_column(
+        Integer, primary_key=True, autoincrement=True
+    )
+    telegram_id: Mapped[int] = mapped_column(
+        BigInteger, unique=True, nullable=False
+    )
     username: Mapped[str | None] = mapped_column(String(64), nullable=True)
     first_name: Mapped[str | None] = mapped_column(String(128), nullable=True)
     joined_at: Mapped[datetime] = mapped_column(
