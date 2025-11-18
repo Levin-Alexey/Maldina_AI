@@ -3,7 +3,7 @@ from aiogram import types, Router, F
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
-from product_search import get_product_by_sku
+from product_search import get_product_by_sku, search_product_by_name
 from kb_search import search_kb
 from llm_client import ask_llm
 from db import SessionLocal
@@ -11,7 +11,7 @@ import re
 
 router = Router()
 
-SKU_PATTERN = re.compile(r"^[A-Za-z0-9\-]+$")
+SKU_PATTERN = re.compile(r"^[A-Za-z0-9\-_]+$")
 
 
 # Клавиатура после ответа на вопрос
@@ -51,25 +51,32 @@ async def handle_user_query(message: types.Message, state: FSMContext):
         await message.answer("Пожалуйста, введите текст запроса.")
         return
 
-
     async with SessionLocal() as session:
-        # 1. Если это похоже на артикул -> ищем товар
+        product = None
+        
+        # 1. Сначала пробуем поиск по артикулу (если похоже на SKU)
         if SKU_PATTERN.match(query):
             product = await get_product_by_sku(session, query)
-            if product:
-                text_resp = (
-                    f"Найден товар:\n"
-                    f"{product['name']}\n"
-                    f"Артикул: {query}\n"
-                    f"Категория: {product.get('category')}\n"
-                    f"{product.get('rag_text')}"
-                )
-                await message.answer(
-                    text_resp, reply_markup=question_actions_kb
-                )
-                await state.clear()
-                return
-        # 2. Иначе – обычный вопрос, идём в RAG по KB
+        
+        # 2. Если не нашли по артикулу - пробуем по названию
+        if not product:
+            product = await search_product_by_name(session, query)
+        
+        # 3. Если товар найден - показываем его описание
+        if product:
+            text_resp = (
+                f"Найден товар:\n\n"
+                f"📦 {product['name']}\n"
+                f"🏷️ Категория: {product.get('category', 'Не указана')}\n\n"
+                f"{product.get('rag_text', '')}"
+            )
+            await message.answer(
+                text_resp, reply_markup=question_actions_kb
+            )
+            await state.clear()
+            return
+        
+        # 4. Если товар не найден - идём в RAG по KB
         results = await search_kb(session, query, limit=1)
 
     # Проверяем единственный результат по порогу релевантности
