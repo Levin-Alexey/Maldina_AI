@@ -51,12 +51,12 @@ async def handle_user_query(message: types.Message, state: FSMContext):
         await message.answer("Пожалуйста, введите текст запроса.")
         return
 
+
     async with SessionLocal() as session:
         # 1. Если это похоже на артикул -> ищем товар
         if SKU_PATTERN.match(query):
             product = await get_product_by_sku(session, query)
             if product:
-                # здесь можно красиво отформатировать карточку товара
                 text_resp = (
                     f"Найден товар:\n"
                     f"{product['name']}\n"
@@ -70,22 +70,26 @@ async def handle_user_query(message: types.Message, state: FSMContext):
                 await state.clear()
                 return
         # 2. Иначе – обычный вопрос, идём в RAG по KB
-        results = await search_kb(session, query, limit=3)
+        results = await search_kb(session, query, limit=1)
 
-    if not results:
+    # Проверяем единственный результат по порогу релевантности
+    THRESHOLD = 2.9  # оптимальный порог на основе тестов
+    
+    if not results or results[0].get("distance", 1.0) > THRESHOLD:
+        # Нет релевантного ответа — заглушка
         await message.answer(
-            "Ответ не найден в базе знаний. "
-            "Пожалуйста, обратитесь в поддержку бота.",
+            "К сожалению, я не нашёл ответа на ваш вопрос в базе знаний.\n"
+            "Пожалуйста, обратитесь в поддержку магазина — "
+            "мы обязательно вам поможем!",
             reply_markup=question_actions_kb,
         )
     else:
-        kb_answers = []
-        for res in results:
-            answer = res["answer_primary"]
-            if res.get("answer_followup"):
-                answer += f"\n\n{res['answer_followup']}"
-            kb_answers.append(answer)
-        llm_response = ask_llm(query, kb_answers)
+        # Есть релевантный ответ — отправляем в LLM
+        best = results[0]
+        answer = best["answer_primary"]
+        if best.get("answer_followup"):
+            answer += f"\n\n{best['answer_followup']}"
+        llm_response = ask_llm(query, [answer])
         await message.answer(llm_response, reply_markup=question_actions_kb)
 
     await state.clear()
