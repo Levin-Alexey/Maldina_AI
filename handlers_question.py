@@ -7,11 +7,13 @@ from product_search import get_product_by_sku, search_product_by_name
 from kb_search import search_kb
 from llm_client import ask_llm
 from db import SessionLocal
+from query_logger import log_query_analytics
 import re
 
 router = Router()
 
 SKU_PATTERN = re.compile(r"^[A-Za-z0-9\-_]+$")
+THRESHOLD = 2.9  # оптимальный порог на основе тестов
 
 
 # Клавиатура после ответа на вопрос
@@ -51,16 +53,44 @@ async def handle_user_query(message: types.Message, state: FSMContext):
         await message.answer("Пожалуйста, введите текст запроса.")
         return
 
+    user_id = message.from_user.id
     async with SessionLocal() as session:
         product = None
+        search_path_parts = []
         
         # 1. Сначала пробуем поиск по артикулу (если похоже на SKU)
         if SKU_PATTERN.match(query):
             product = await get_product_by_sku(session, query)
+            if product:
+                search_path_parts.append("sku_success")
+                # Логируем успешный поиск по SKU
+                await log_query_analytics(
+                    session,
+                    telegram_user_id=user_id,
+                    query_original=query,
+                    search_path="->".join(search_path_parts),
+                    final_result_type="product",
+                    result_id=product["id"],
+                )
+            else:
+                search_path_parts.append("sku_failed")
         
         # 2. Если не нашли по артикулу - пробуем по названию
         if not product:
             product = await search_product_by_name(session, query)
+            if product:
+                search_path_parts.append("name_success")
+                # Логируем успешный поиск по названию
+                await log_query_analytics(
+                    session,
+                    telegram_user_id=user_id,
+                    query_original=query,
+                    search_path="->".join(search_path_parts),
+                    final_result_type="product",
+                    result_id=product["id"],
+                )
+            else:
+                search_path_parts.append("name_failed")
         
         # 3. Если товар найден - показываем его описание
         if product:
@@ -80,10 +110,19 @@ async def handle_user_query(message: types.Message, state: FSMContext):
         results = await search_kb(session, query, limit=1)
 
     # Проверяем единственный результат по порогу релевантности
-    THRESHOLD = 2.9  # оптимальный порог на основе тестов
-    
     if not results or results[0].get("distance", 1.0) > THRESHOLD:
-        # Нет релевантного ответа — заглушка
+        # Нет релевантного ответа — логируем провал
+        search_path_parts.append("kb_failed")
+        async with SessionLocal() as session:
+            await log_query_analytics(
+                session,
+                telegram_user_id=user_id,
+                query_original=query,
+                search_path="->".join(search_path_parts),
+                final_result_type="failed",
+                threshold_used=THRESHOLD,
+            )
+        
         await message.answer(
             "К сожалению, я не нашёл ответа на ваш вопрос в базе знаний.\n"
             "Пожалуйста, обратитесь в поддержку магазина — "
@@ -93,6 +132,21 @@ async def handle_user_query(message: types.Message, state: FSMContext):
     else:
         # Есть релевантный ответ — отправляем в LLM
         best = results[0]
+        search_path_parts.append("kb_success")
+        
+        # Логируем успешный поиск в KB
+        async with SessionLocal() as session:
+            await log_query_analytics(
+                session,
+                telegram_user_id=user_id,
+                query_original=query,
+                search_path="->".join(search_path_parts),
+                final_result_type="kb",
+                result_id=best["id"],
+                confidence_score=best.get("distance"),
+                threshold_used=THRESHOLD,
+            )
+        
         answer = best["answer_primary"]
         if best.get("answer_followup"):
             answer += f"\n\n{best['answer_followup']}"

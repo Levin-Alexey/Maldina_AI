@@ -80,6 +80,44 @@ class User(Base):
     )
 
 
+# Модель аналитики запросов
+class QueryAnalytics(Base):
+    __tablename__ = "query_analytics"
+
+    id: Mapped[int] = mapped_column(
+        Integer, primary_key=True, autoincrement=True
+    )
+    telegram_user_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
+
+    # Запрос пользователя
+    query_original: Mapped[str] = mapped_column(Text, nullable=False)
+    query_normalized: Mapped[str] = mapped_column(Text, nullable=False)
+
+    # Путь поиска и результат
+    search_path: Mapped[str] = mapped_column(
+        String(100), nullable=False
+    )  # "sku_success", "sku_failed->name_success", etc.
+    final_result_type: Mapped[str] = mapped_column(
+        String(20), nullable=False
+    )  # "product", "kb", "failed"
+
+    # Детали результата
+    result_id: Mapped[int | None] = mapped_column(
+        Integer, nullable=True
+    )  # product.id или kb_entry.id
+    confidence_score: Mapped[float | None] = mapped_column(
+        nullable=True
+    )  # distance для KB
+    threshold_used: Mapped[float | None] = mapped_column(
+        nullable=True
+    )  # порог на момент запроса
+
+    # Мета-данные
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+
 # Пример создания движка и сессии:
 # from dotenv import load_dotenv
 # import os
