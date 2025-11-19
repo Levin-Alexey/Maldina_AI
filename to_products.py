@@ -6,7 +6,7 @@ from pathlib import Path
 # === 1. Ищем Excel-файл с товарами ===
 # Пути-п候дпи (как в to_kb.py): ./files/products.xlsx или ./products.xlsx
 base_dir = Path(__file__).resolve().parent
-candidates = [base_dir / "files" / "products.xlsx", base_dir / "products.xlsx"]
+candidates = [base_dir / "files" / "items.xlsx", base_dir / "products.xlsx"]
 for path in candidates:
     if path.exists():
         xlsx_path = path
