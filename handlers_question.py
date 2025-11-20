@@ -162,28 +162,8 @@ async def return_to_main_menu(
 ):
     """Возврат в главное меню"""
     await state.clear()
-    
-    # Импортируем клавиатуру главного меню из main.py
-    from main import menu_kb
-    
-    welcome_text = (
-        "Здравствуйте! Это чат поддержки покупателей магазина MalDina.\n"
-        "Здесь вы можете найти ответы на интересующие вопросы по нашим "
-        "товарам, получить консультацию по возврату товара, получить бонус "
-        "за отзыв, а также оставить обратную связь о нашем магазине.\n\n"
-        "График работы поддержки:\n"
-        "Пн - Пт с 9:00 до 18:00\n\n"
-        "Для перехода в нужный раздел нажмите соответствующую кнопку:"
-    )
-    
-    try:
-        # Пытаемся отредактировать сообщение с кнопкой
-        await callback.message.edit_text(
-            welcome_text, reply_markup=menu_kb
-        )
-    except Exception:
-        # Если не получилось (например, текст не изменился),
-        # отправляем новое сообщение
-        await callback.message.answer(welcome_text, reply_markup=menu_kb)
-    
     await callback.answer()
+    
+    # Вызываем тот же обработчик, что и /start
+    from main import cmd_start
+    await cmd_start(callback.message)
