@@ -41,6 +41,8 @@ class KbEntry(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
+    embedding = mapped_column(Vector(384), nullable=True)
+    tsv = mapped_column(Text, nullable=True) # Representing TSVECTOR as Text in ORM, actual type handled by DB
     # tsv не нужен в ORM, он для индексации/поиска
 
 
