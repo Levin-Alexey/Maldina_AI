@@ -162,7 +162,6 @@ async def return_to_main_menu(
 ):
     """Возврат в главное меню"""
     await state.clear()
-    await callback.answer()
     
     # Импортируем клавиатуру главного меню из main.py
     from main import menu_kb
@@ -177,4 +176,14 @@ async def return_to_main_menu(
         "Для перехода в нужный раздел нажмите соответствующую кнопку:"
     )
     
-    await callback.message.answer(welcome_text, reply_markup=menu_kb)
+    try:
+        # Пытаемся отредактировать сообщение с кнопкой
+        await callback.message.edit_text(
+            welcome_text, reply_markup=menu_kb
+        )
+    except Exception:
+        # Если не получилось (например, текст не изменился),
+        # отправляем новое сообщение
+        await callback.message.answer(welcome_text, reply_markup=menu_kb)
+    
+    await callback.answer()
