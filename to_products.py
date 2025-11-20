@@ -4,17 +4,23 @@ import psycopg2
 from pathlib import Path
 
 # === 1. Ищем Excel-файл с товарами ===
-# Пути-п候дпи (как в to_kb.py): ./files/products.xlsx или ./products.xlsx
+# Ищем в порядке приоритета:
+#   ./files/products.xlsx
+#   ./products.xlsx (в корне проекта)
+#   items.xlsx устарел — оставлен только как запасной вариант
 base_dir = Path(__file__).resolve().parent
-candidates = [base_dir / "files" / "items.xlsx", base_dir / "products.xlsx"]
+candidates = [
+    base_dir / "files" / "products.xlsx",
+    base_dir / "products.xlsx",
+    base_dir / "files" / "items.xlsx",  # fallback: старое имя
+]
 for path in candidates:
     if path.exists():
         xlsx_path = path
         break
 else:
     raise FileNotFoundError(
-        "Не найден Excel-файл products.xlsx. "
-        "Проверь, что он есть по одному из путей: "
+        "Не найден Excel-файл products.xlsx. Ожидались пути: "
         + ", ".join(str(p) for p in candidates)
     )
 
@@ -24,13 +30,24 @@ print(f"Используется файл: {xlsx_path}")
 df = pd.read_excel(xlsx_path, dtype=str).fillna("")
 
 # Проверяем, что нужные колонки есть
-required_cols = ["internal_sku", "wb_sku", "ozon_sku", "product_name", "category", "rag_text"]
+required_cols = [
+    "internal_sku",
+    "wb_sku",
+    "ozon_sku",
+    "product_name",
+    "category",
+    "rag_text",
+]
 missing = [c for c in required_cols if c not in df.columns]
 if missing:
-    raise ValueError(f"В файле {xlsx_path} нет обязательных колонок: {missing}")
+    raise ValueError(
+        f"В файле {xlsx_path} нет обязательных колонок: {missing}"
+    )
 
 # === 3. Модель эмбеддингов (та же, что для kb) ===
-model = SentenceTransformer("paraphrase-multilingual-MiniLM-L12-v2")  # 384-мерный вектор
+model = SentenceTransformer(
+    "paraphrase-multilingual-MiniLM-L12-v2"
+)  # 384-мерный вектор
 
 # === 4. Подключение к БД ===
 conn = psycopg2.connect(
@@ -58,7 +75,7 @@ for idx, row in df.iterrows():
         # Строка пустая, пропускаем
         continue
 
-    # Текст для эмбеддинга — используем rag_text, а если он пустой — хотя бы name
+    # Текст для эмбеддинга: rag_text или name, если rag_text пуст
     emb_source_text = rag_text if rag_text else name
     emb = model.encode(emb_source_text).tolist()
 
