@@ -42,8 +42,9 @@ for _, row in df.iterrows():
     if not question and not answer:
         continue
 
-    # Текст для эмбеддинга: вопрос + ответ
-    emb_text = question + "\n\n" + answer
+    # Текст для эмбеддинга: только вопрос
+    # (короткие вопросы лучше матчатся без примеси длинного ответа)
+    emb_text = question
     emb = model.encode(emb_text).tolist()
 
     # Уникальный хэш строки (чтобы не было дублей)
