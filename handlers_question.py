@@ -164,8 +164,32 @@ async def return_to_main_menu(
     await state.clear()
     await callback.answer()
     
-    # Импортируем клавиатуру главного меню
-    from main import menu_kb
+    # Клавиатура главного меню
+    # (дублируем из main.py, чтобы избежать циклического импорта)
+    menu_kb = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text="Вопрос по товару", callback_data="question"
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    text="Подтверждение брака", callback_data="defect"
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    text="Бонус за отзыв", callback_data="bonus"
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    text="Обратная связь", callback_data="feedback"
+                )
+            ],
+        ]
+    )
     
     welcome_text = (
         "Здравствуйте! Это чат поддержки покупателей магазина MalDina.\n"
