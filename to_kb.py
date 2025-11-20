@@ -52,6 +52,8 @@ for _, row in df.iterrows():
     ).hexdigest()
 
     # INSERT в таблицу kb_entries
+    # Upsert: при конфликте по source_hash обновляем
+    # вопрос, ответ, embedding и tsv
     cur.execute(
         """
         INSERT INTO kb_entries (
@@ -66,17 +68,21 @@ for _, row in df.iterrows():
             tsv
         )
         VALUES (
-            NULL,               -- category
-            %s,                 -- user_question
-            %s,                 -- answer_primary
-            NULL,               -- answer_followup
-            NULL,               -- rating_context
-            NULL,               -- tags
-            %s,                 -- source_hash
-            %s,                 -- embedding
-            to_tsvector('russian', %s)  -- tsv
+            NULL,
+            %s,
+            %s,
+            NULL,
+            NULL,
+            NULL,
+            %s,
+            %s,
+            to_tsvector('russian', %s)
         )
-        ON CONFLICT (source_hash) DO NOTHING
+        ON CONFLICT (source_hash) DO UPDATE SET
+            user_question = EXCLUDED.user_question,
+            answer_primary = EXCLUDED.answer_primary,
+            embedding = EXCLUDED.embedding,
+            tsv = EXCLUDED.tsv
         """,
         (question, answer, source_hash, emb, question + " " + answer),
     )
