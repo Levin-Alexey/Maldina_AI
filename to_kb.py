@@ -83,7 +83,8 @@ for _, row in df.iterrows():
             user_question = EXCLUDED.user_question,
             answer_primary = EXCLUDED.answer_primary,
             embedding = EXCLUDED.embedding,
-            tsv = EXCLUDED.tsv
+            tsv = EXCLUDED.tsv,
+            updated_at = CURRENT_TIMESTAMP
         """,
         (question, answer, source_hash, emb, question + " " + answer),
     )
