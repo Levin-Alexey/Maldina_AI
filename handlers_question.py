@@ -13,7 +13,7 @@ import re
 router = Router()
 
 SKU_PATTERN = re.compile(r"^[A-Za-z0-9\-_]+$")
-THRESHOLD = 3.1  # оптимальный порог на основе тестов
+THRESHOLD = 3.25  # оптимальный порог на основе тестов
 
 
 # Клавиатура после ответа на вопрос
