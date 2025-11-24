@@ -20,14 +20,22 @@ async def check():
         
         print(f"ID: {row[0]}")
         print(f"Вопрос из БД: '{row[1]}'")
-        print(f"Embedding из БД (первые 5): {row[2][:5]}")
+        
+        # Преобразуем embedding в список (может быть строкой или уже списком)
+        db_emb_raw = row[2]
+        if isinstance(db_emb_raw, str):
+            # Убираем скобки и парсим
+            db_emb = [float(x) for x in db_emb_raw.strip('[]').split(',')]
+        else:
+            db_emb = list(db_emb_raw)
+        
+        print(f"Embedding из БД (первые 5): {db_emb[:5]}")
         
         # Генерируем embedding заново
         new_emb = model.encode(row[1]).tolist()
         print(f"\nНовый embedding (первые 5): {new_emb[:5]}")
         
         # Сравниваем
-        db_emb = list(row[2])
         diff = sum(abs(a - b) for a, b in zip(db_emb[:10], new_emb[:10]))
         print(f"\nРазница (первые 10 элементов): {diff:.6f}")
         
