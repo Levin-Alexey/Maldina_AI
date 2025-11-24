@@ -13,7 +13,7 @@ import re
 router = Router()
 
 SKU_PATTERN = re.compile(r"^[A-Za-z0-9\-_]+$")
-THRESHOLD = 2.9  # оптимальный порог на основе тестов
+THRESHOLD = 3.1  # оптимальный порог на основе тестов
 
 
 # Клавиатура после ответа на вопрос
@@ -22,6 +22,11 @@ question_actions_kb = InlineKeyboardMarkup(
         [
             InlineKeyboardButton(
                 text="Задать ещё вопрос", callback_data="question"
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                text="Сообщить о браке", callback_data="defect"
             )
         ],
         [
@@ -107,7 +112,7 @@ async def handle_user_query(message: types.Message, state: FSMContext):
             return
         
         # 4. Если товар не найден - идём в RAG по KB
-        results = await search_kb(session, query, limit=1)
+        results = await search_kb(session, query, limit=3)
 
     # Проверяем единственный результат по порогу релевантности
     if not results or results[0].get("distance", 1.0) > THRESHOLD:
@@ -130,28 +135,55 @@ async def handle_user_query(message: types.Message, state: FSMContext):
             reply_markup=question_actions_kb,
         )
     else:
-        # Есть релевантный ответ — отправляем в LLM
-        best = results[0]
-        search_path_parts.append("kb_success")
+        # Есть релевантные ответы — фильтруем по порогу и отправляем в LLM
+        relevant_results = [r for r in results if r.get("distance", 999) <= THRESHOLD]
         
-        # Логируем успешный поиск в KB
-        async with SessionLocal() as session:
-            await log_query_analytics(
-                session,
-                telegram_user_id=user_id,
-                query_original=query,
-                search_path="->".join(search_path_parts),
-                final_result_type="kb",
-                result_id=best["id"],
-                confidence_score=best.get("distance"),
-                threshold_used=THRESHOLD,
+        if not relevant_results:
+            # Все результаты за порогом
+            search_path_parts.append("kb_failed")
+            async with SessionLocal() as session:
+                await log_query_analytics(
+                    session,
+                    telegram_user_id=user_id,
+                    query_original=query,
+                    search_path="->".join(search_path_parts),
+                    final_result_type="failed",
+                    threshold_used=THRESHOLD,
+                )
+            await message.answer(
+                "К сожалению, я не нашёл ответа на ваш вопрос в базе знаний.\n"
+                "Пожалуйста, обратитесь в поддержку магазина — "
+                "мы обязательно вам поможем!",
+                reply_markup=question_actions_kb,
             )
-        
-        answer = best["answer_primary"]
-        if best.get("answer_followup"):
-            answer += f"\n\n{best['answer_followup']}"
-        llm_response = ask_llm(query, [answer])
-        await message.answer(llm_response, reply_markup=question_actions_kb)
+        else:
+            # Используем лучший результат для логирования
+            best = relevant_results[0]
+            search_path_parts.append("kb_success")
+            
+            # Логируем успешный поиск в KB
+            async with SessionLocal() as session:
+                await log_query_analytics(
+                    session,
+                    telegram_user_id=user_id,
+                    query_original=query,
+                    search_path="->".join(search_path_parts),
+                    final_result_type="kb",
+                    result_id=best["id"],
+                    confidence_score=best.get("distance"),
+                    threshold_used=THRESHOLD,
+                )
+            
+            # Собираем все релевантные ответы для LLM
+            all_answers = []
+            for r in relevant_results:
+                answer = r["answer_primary"]
+                if r.get("answer_followup"):
+                    answer += f"\n\n{r['answer_followup']}"
+                all_answers.append(answer)
+            
+            llm_response = ask_llm(query, all_answers)
+            await message.answer(llm_response, reply_markup=question_actions_kb)
 
     await state.clear()
 
