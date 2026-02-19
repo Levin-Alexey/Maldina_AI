@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import (
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 from sqlalchemy import String, Integer, DateTime, func, BigInteger, Text, ARRAY
+from sqlalchemy.dialects.postgresql import JSONB
 from datetime import datetime
 from pgvector.sqlalchemy import Vector
 
@@ -117,6 +118,78 @@ class QueryAnalytics(Base):
     # Мета-данные
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
+    )
+
+
+# Модель инструкций по устранению неисправностей
+class TroubleshootInstruction(Base):
+    __tablename__ = "troubleshoot_instructions"
+
+    id: Mapped[int] = mapped_column(
+        Integer, primary_key=True, autoincrement=True
+    )
+
+    # Артикулы - хранятся как строки через запятую (из inst.xlsx)
+    internal_sku: Mapped[str | None] = mapped_column(Text, nullable=True)
+    wb_sku: Mapped[str | None] = mapped_column(Text, nullable=True)
+    ozon_sku: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    # Название товара (из файла, независимо от products)
+    product_name: Mapped[str] = mapped_column(Text, nullable=False)
+
+    # Описание проблемы/неисправности
+    issue_description: Mapped[str] = mapped_column(Text, nullable=False)
+
+    # Шаги решения в формате JSON: {"1": "текст шага 1", "2": "текст шага 2", ...}
+    steps: Mapped[dict] = mapped_column(JSONB, nullable=False)
+
+    # Хеш для дедупликации при импорте (product_name + issue_description)
+    content_hash: Mapped[str] = mapped_column(
+        String(64), unique=True, nullable=False
+    )
+
+    # Эмбеддинг для семантического поиска (product_name + issue_description)
+    embedding = mapped_column(Vector(384), nullable=True)
+
+    # Метаданные
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
+# Модель аналитики troubleshooting сессий
+class TroubleshootSession(Base):
+    __tablename__ = "troubleshoot_sessions"
+
+    id: Mapped[int] = mapped_column(
+        Integer, primary_key=True, autoincrement=True
+    )
+    telegram_user_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
+
+    # Связь с инструкцией (если найдена)
+    instruction_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+
+    # Поисковый запрос пользователя
+    search_query: Mapped[str] = mapped_column(Text, nullable=False)
+
+    # Найдена ли инструкция
+    instruction_found: Mapped[bool] = mapped_column(nullable=False, default=False)
+
+    # Сколько шагов пользователь прошел
+    steps_completed: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+
+    # Решена ли проблема (True/False/None если не указано)
+    issue_resolved: Mapped[bool | None] = mapped_column(nullable=True)
+
+    # Метаданные
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    completed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
     )
 
 

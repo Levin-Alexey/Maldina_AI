@@ -42,6 +42,7 @@ menu_kb = InlineKeyboardMarkup(
         [InlineKeyboardButton(text="Подтверждение брака", callback_data="defect")],
         [InlineKeyboardButton(text="Бонус за отзыв", callback_data="bonus")],
         [InlineKeyboardButton(text="Обратная связь", callback_data="feedback")],
+        [InlineKeyboardButton(text="🤖 Решить проблему с ИИ", callback_data="ai_troubleshoot")],
     ]
 )
 
@@ -99,6 +100,11 @@ dp.include_router(bonus_router)
 from handlers_feedback import router as feedback_router
 
 dp.include_router(feedback_router)
+
+# Импортируем и регистрируем router для AI-диагностики
+from handlers_ai_troubleshoot import router as troubleshoot_router
+
+dp.include_router(troubleshoot_router)
 
 
 async def main():

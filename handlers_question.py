@@ -220,6 +220,11 @@ async def return_to_main_menu(
                     text="Обратная связь", callback_data="feedback"
                 )
             ],
+            [
+                InlineKeyboardButton(
+                    text="🤖 Решить проблему с ИИ", callback_data="ai_troubleshoot"
+                )
+            ],
         ]
     )
     
