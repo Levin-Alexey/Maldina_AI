@@ -171,7 +171,6 @@ async def troubleshoot_start(callback: types.CallbackQuery, state: FSMContext):
         "Я помогу вам решить проблему с товаром пошагово.\n\n"
         "Пожалуйста, укажите:\n"
         "• Артикул товара (внутренний, WB или Ozon)\n"
-        "• Или название товара\n\n"
         "Например: <code>224761103</code> или <code>автомат</code>",
         parse_mode="HTML",
         reply_markup=get_main_menu_kb()
